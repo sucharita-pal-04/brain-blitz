@@ -9,9 +9,9 @@ export function Home({ nickname, avatar, code, error, onNickname, onAvatar, onCo
     <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }}>
       <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-hot/30 bg-hot/10 px-4 py-2 text-xs font-bold tracking-widest text-hot"><Gamepad2 size={15}/> LIVE MULTIPLAYER TRIVIA</div>
       <h1 className="font-display text-5xl font-black leading-[.95] sm:text-7xl">OUTTHINK.<br/><span className="neon-text">OUTSPEED.</span><br/>OUTSCORE.</h1>
-      <p className="mt-6 max-w-xl text-base leading-relaxed text-white/55 sm:text-lg">Ten questions. Ten seconds each. One neon-lit battle for the top of the leaderboard.</p>
+      <p className="mt-6 max-w-xl text-base leading-relaxed text-white/55 sm:text-lg">Ten questions. Ten seconds. Ten unstable realities—drawing, deception, memory, teams, heists, and one final boss.</p>
       <div className="mt-8 flex flex-wrap gap-3 text-xs text-white/55">
-        <span className="feature-pill"><Users size={15}/> Up to 20 players</span><span className="feature-pill"><Timer size={15}/> 10-second rounds</span><span className="feature-pill"><Trophy size={15}/> Speed scoring</span>
+        <span className="feature-pill"><Users size={15}/> Up to 20 players</span><span className="feature-pill"><Timer size={15}/> Reality Glitches</span><span className="feature-pill"><Trophy size={15}/> Social chaos</span>
       </div>
     </motion.div>
     <motion.div initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .12 }} className="panel p-5 sm:p-7">

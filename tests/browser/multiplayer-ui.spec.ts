@@ -21,13 +21,12 @@ test('two independent browser sessions join one synchronized match', async ({ br
   await expect(host.getByText('Pixel')).toBeVisible();
   await expect(guest.getByText('Nova')).toBeVisible();
 
-  await host.getByRole('button', { name: /START BLITZ/ }).click();
+  await host.getByRole('button', { name: /START/ }).click();
   await expect(host.getByText(/QUESTION 1 \/ 10/)).toBeVisible();
   await expect(guest.getByText(/QUESTION 1 \/ 10/)).toBeVisible();
-  const hostQuestion = await host.locator('h1').last().textContent();
-  const guestQuestion = await guest.locator('h1').last().textContent();
-  expect(guestQuestion).toBe(hostQuestion);
-  await expect(host.getByRole('button', { name: /DOUBLE DOWN/ })).toBeVisible();
+  await expect(host.getByText(/REALITY GLITCH \/\//)).toBeVisible();
+  await expect(guest.getByText(/REALITY GLITCH \/\//)).toBeVisible();
+  await expect(guest.getByRole('button', { name: /DOUBLE DOWN/ })).toBeVisible();
   await expect(guest.getByRole('button', { name: /PHASE SHIFT/ })).toBeVisible();
   await guest.getByRole('button', { name: '🤯', exact: true }).click();
   await expect(host.getByText('Pixel')).toBeVisible();

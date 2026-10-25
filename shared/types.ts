@@ -1,4 +1,7 @@
 export type GamePhase = 'lobby' | 'question' | 'reveal' | 'leaderboard' | 'winner';
+export type GlitchId = 'drawstorm' | 'consensus' | 'impostor' | 'prediction' | 'memory' | 'heist' | 'fusion' | 'chain' | 'reverse' | 'boss';
+export interface GlitchView { id: GlitchId; name: string; icon: string; instruction: string; }
+export interface DrawStroke { id: string; from: [number, number]; to: [number, number]; color: string; size: number; }
 
 export interface PlayerView {
   id: string;
@@ -14,6 +17,7 @@ export interface PlayerView {
   doubleDowns: number;
   phaseShifts: number;
   activePower?: 'double' | 'phase';
+  team?: 'cyan' | 'pink';
 }
 
 export interface QuestionView {
@@ -22,6 +26,7 @@ export interface QuestionView {
   category: string;
   number: number;
   total: number;
+  glitch: GlitchView;
 }
 
 export interface RoomState {
@@ -35,6 +40,10 @@ export interface RoomState {
   totalQuestions: number;
   answerDistribution?: number[];
   fusionBonus?: boolean;
+  artistId?: string;
+  impostorId?: string;
+  bossId?: string;
+  chainBank?: number;
 }
 
 export interface JoinPayload { code: string; nickname: string; avatar: string; playerId?: string; }

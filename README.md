@@ -2,6 +2,8 @@
 
 Brain Blitz is a real-time multiplayer trivia game for up to 20 players. It uses React, TypeScript, Vite, Tailwind CSS, Express, and Socket.IO.
 
+Every match now runs through the Reality Glitch deck: Drawstorm, Consensus Trap, Impostor Pulse, Prediction Market, Memory Corruption, Answer Heist, Team Fusion, Chain Reaction, Reverse Reality, and a Final Boss. Drawing strokes, secret prompts, reactions, scoring effects, and round transitions are synchronized by the server.
+
 ## Run locally
 
 ```bash
