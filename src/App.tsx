@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AnswerResult, JoinResult, RoomState } from '../shared/types';
+import type { AnswerResult, JoinResult, PowerResult, ReactionEvent, RoomState } from '../shared/types';
 import { ArcadeShell } from './components/ArcadeShell';
 import { useSound } from './hooks/useSound';
 import { clearSession, loadSession, saveSession } from './lib/session';
@@ -9,6 +9,7 @@ import { Lobby } from './screens/Lobby';
 import { Quiz } from './screens/Quiz';
 import { Leaderboard } from './screens/Leaderboard';
 import { Winner } from './screens/Winner';
+import { ReactionDock } from './components/ReactionDock';
 
 export function App() {
   const saved = useMemo(loadSession, []);
@@ -22,6 +23,8 @@ export function App() {
   const [seconds, setSeconds] = useState(10);
   const [selected, setSelected] = useState<number>();
   const [result, setResult] = useState<AnswerResult>();
+  const [eliminated, setEliminated] = useState<number[]>([]);
+  const [reactions, setReactions] = useState<ReactionEvent[]>([]);
   const { enabled: sound, toggle: toggleSound, play } = useSound();
 
   const enterRoom = useCallback((result: JoinResult, profile: {nickname:string;avatar:string}) => {
@@ -36,13 +39,15 @@ export function App() {
       if (current) socket.emit('room:join', current, (response: JoinResult) => enterRoom(response, current));
     };
     const onState = (next: RoomState) => setState((previous) => {
-      if (previous?.currentQuestion !== next.currentQuestion || previous?.phase !== next.phase) { setSelected(undefined); setResult(undefined); }
+      if (previous?.currentQuestion !== next.currentQuestion || previous?.phase !== next.phase) { setSelected(undefined); setResult(undefined); if (next.phase === 'question') setEliminated([]); }
       return next;
     });
     const onDisconnect = () => setConnected(false);
     socket.on('connect', onConnect); socket.on('disconnect', onDisconnect); socket.on('room:state', onState);
+    const onReaction = (reaction: ReactionEvent) => { setReactions((current)=>[...current.slice(-5),reaction]); window.setTimeout(()=>setReactions((current)=>current.filter((item)=>item.id!==reaction.id)),2400); };
+    socket.on('reaction:new', onReaction);
     if (socket.connected) onConnect();
-    return () => { socket.off('connect', onConnect); socket.off('disconnect', onDisconnect); socket.off('room:state', onState); };
+    return () => { socket.off('connect', onConnect); socket.off('disconnect', onDisconnect); socket.off('room:state', onState); socket.off('reaction:new', onReaction); };
   }, [enterRoom]);
 
   useEffect(() => {
@@ -56,12 +61,14 @@ export function App() {
   const join = () => { if (!validProfile()) return; if (code.length!==6) {setError('Room codes are six characters.');return;} play('tap'); socket.emit('room:join',{code,nickname,avatar},(r:JoinResult)=>enterRoom(r,{nickname,avatar})); };
   const start = () => socket.emit('game:start',{code:state!.code,playerId},(r:{ok:boolean;error?:string})=>!r.ok&&setError(r.error));
   const answer = (option:number) => { setSelected(option); play('tap'); socket.emit('answer:submit',{code:state!.code,playerId,option},(r:AnswerResult)=>{setResult(r); play(r.correct?'correct':'wrong');}); };
+  const usePower = (power:'double'|'phase') => socket.emit('power:use',{code:state!.code,playerId,power},(r:PowerResult)=>{if(!r.ok)setError(r.error);else{setEliminated(r.eliminated||[]);play('tap');}});
+  const react = (emoji:string) => state && socket.emit('reaction:send',{code:state.code,playerId,emoji});
   const home = () => { clearSession(); setState(undefined); setPlayerId(undefined); setCode(''); setResult(undefined); setSelected(undefined); };
 
   let content = <Home {...{nickname,avatar,code,error}} onNickname={setNickname} onAvatar={setAvatar} onCode={setCode} onCreate={create} onJoin={join}/>;
   if (state?.phase === 'lobby') content = <Lobby state={state} me={playerId} onStart={start}/>;
-  if (state?.phase === 'question' || state?.phase === 'reveal') content = <Quiz state={state} me={playerId} seconds={seconds} selected={selected} result={result} onAnswer={answer}/>;
+  if (state?.phase === 'question' || state?.phase === 'reveal') content = <Quiz state={state} me={playerId} seconds={seconds} selected={selected} result={result} eliminated={eliminated} onPower={usePower} onAnswer={answer}/>;
   if (state?.phase === 'leaderboard') content = <Leaderboard state={state} me={playerId}/>;
   if (state?.phase === 'winner') content = <Winner state={state} me={playerId} onAgain={start} onHome={home}/>;
-  return <ArcadeShell sound={sound} onSound={toggleSound} connected={connected} room={state?.code}>{content}</ArcadeShell>;
+  return <ArcadeShell sound={sound} onSound={toggleSound} connected={connected} room={state?.code}>{content}{state && <ReactionDock reactions={reactions} onReact={react}/>}</ArcadeShell>;
 }

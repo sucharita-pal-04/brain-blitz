@@ -3,7 +3,7 @@ import type { Server } from 'socket.io';
 import type { AnswerResult, JoinPayload, JoinResult, PlayerView, RoomState } from '../shared/types.ts';
 import { pickQuestions, type Question } from './questions.ts';
 
-interface Player extends PlayerView { socketId: string; disconnectTimer?: NodeJS.Timeout; }
+interface Player extends PlayerView { socketId: string; disconnectTimer?: NodeJS.Timeout; answerOption?: number; answerCorrect?: boolean; lastReactionAt?: number; }
 interface Room {
   code: string;
   phase: RoomState['phase'];
@@ -12,6 +12,7 @@ interface Room {
   questionIndex: number;
   questionEndsAt?: number;
   timer?: NodeJS.Timeout;
+  fusionBonus?: boolean;
 }
 
 const QUESTION_MS = process.env.NODE_ENV === 'test' ? 600 : 10_000;
@@ -37,12 +38,14 @@ export class GameManager {
     return {
       code: room.code,
       phase: room.phase,
-      players: [...room.players.values()].map(({ socketId: _socketId, disconnectTimer: _disconnectTimer, ...p }) => p).sort((a, b) => b.score - a.score),
+      players: [...room.players.values()].map(({ socketId: _socketId, disconnectTimer: _disconnectTimer, answerOption: _answerOption, answerCorrect: _answerCorrect, lastReactionAt: _lastReactionAt, ...p }) => p).sort((a, b) => b.score - a.score),
       question: q && room.phase !== 'lobby' ? { text: q.text, options: q.options, category: q.category, number: room.questionIndex + 1, total: 10 } : undefined,
       questionEndsAt: room.questionEndsAt,
       correctOption: room.phase === 'reveal' || room.phase === 'leaderboard' || room.phase === 'winner' ? q?.correct : undefined,
       currentQuestion: Math.max(0, room.questionIndex + 1),
-      totalQuestions: 10
+      totalQuestions: 10,
+      answerDistribution: room.phase === 'reveal' || room.phase === 'leaderboard' ? [0,1,2,3].map((i) => [...room.players.values()].filter((p) => p.answerOption === i).length) : undefined,
+      fusionBonus: room.fusionBonus
     };
   }
 
@@ -51,7 +54,7 @@ export class GameManager {
   create(socketId: string, nickname: string, avatar: string): JoinResult {
     const code = this.makeCode();
     const id = randomUUID();
-    const player: Player = { id, socketId, nickname: cleanName(nickname), avatar, score: 0, connected: true, spectator: false, isHost: true, answered: false };
+    const player: Player = { id, socketId, nickname: cleanName(nickname), avatar, score: 0, connected: true, spectator: false, isHost: true, answered: false, streak: 0, maxStreak: 0, doubleDowns: 1, phaseShifts: 1 };
     const room: Room = { code, phase: 'lobby', players: new Map([[id, player]]), questions: [], questionIndex: -1 };
     this.rooms.set(code, room);
     return { ok: true, playerId: id, state: this.view(room) };
@@ -68,7 +71,7 @@ export class GameManager {
     }
     if (room.players.size >= 20) return { ok: false, error: 'This room is full.' };
     const id = randomUUID();
-    const player: Player = { id, socketId, nickname: cleanName(payload.nickname), avatar: payload.avatar, score: 0, connected: true, spectator: room.phase !== 'lobby', isHost: false, answered: false };
+    const player: Player = { id, socketId, nickname: cleanName(payload.nickname), avatar: payload.avatar, score: 0, connected: true, spectator: room.phase !== 'lobby', isHost: false, answered: false, streak: 0, maxStreak: 0, doubleDowns: 1, phaseShifts: 1 };
     room.players.set(id, player);
     return { ok: true, playerId: id, state: this.view(room) };
   }
@@ -79,7 +82,7 @@ export class GameManager {
     if (!room || !player?.isHost) return 'Only the host can start.';
     if (room.phase !== 'lobby' && room.phase !== 'winner') return 'The game is already running.';
     room.questions = pickQuestions(10); room.questionIndex = -1;
-    for (const p of room.players.values()) { p.score = 0; p.spectator = false; }
+    for (const p of room.players.values()) { p.score = 0; p.streak = 0; p.maxStreak = 0; p.doubleDowns = 1; p.phaseShifts = 1; p.activePower = undefined; p.spectator = false; }
     this.nextQuestion(room);
   }
 
@@ -90,12 +93,41 @@ export class GameManager {
     if (player.spectator) return { ok: false, error: 'Spectators join the next match.' };
     if (player.answered) return { ok: false, error: 'Answer already locked.' };
     if (!Number.isInteger(option) || option < 0 || option > 3) return { ok: false, error: 'Invalid answer.' };
-    player.answered = true;
+    player.answered = true; player.answerOption = option;
     const correct = room.questions[room.questionIndex].correct === option;
-    const points = correct ? Math.max(100, Math.round(100 + 900 * Math.max(0, room.questionEndsAt - Date.now()) / QUESTION_MS)) : 0;
+    player.answerCorrect = correct;
+    if (correct) { player.streak += 1; player.maxStreak = Math.max(player.maxStreak, player.streak); } else player.streak = 0;
+    const base = Math.max(100, Math.round(100 + 900 * Math.max(0, room.questionEndsAt - Date.now()) / QUESTION_MS));
+    const combo = 1 + Math.min(5, Math.max(0, player.streak - 1)) * .12;
+    const points = correct ? Math.round(base * combo * (player.activePower === 'double' ? 2 : 1)) : player.activePower === 'double' ? -150 : 0;
     player.score += points;
+    player.activePower = undefined;
     this.emit(room);
     return { ok: true, correct, points };
+  }
+
+  usePower(code: string, playerId: string, power: 'double' | 'phase') {
+    const room = this.rooms.get(code); const player = room?.players.get(playerId);
+    if (!room || !player) return { ok: false, error: 'Player not found.' };
+    if (room.phase !== 'question' || player.answered || player.spectator) return { ok: false, error: 'Power cards are locked.' };
+    if (player.activePower) return { ok: false, error: 'One power per question.' };
+    if (power === 'double') {
+      if (player.doubleDowns < 1) return { ok: false, error: 'Double Down already used.' };
+      player.doubleDowns -= 1; player.activePower = 'double'; this.emit(room); return { ok: true };
+    }
+    if (player.phaseShifts < 1) return { ok: false, error: 'Phase Shift already used.' };
+    player.phaseShifts -= 1; player.activePower = 'phase'; this.emit(room);
+    const correct = room.questions[room.questionIndex].correct;
+    const eliminated = [0,1,2,3].filter((i) => i !== correct).sort(() => Math.random() - .5).slice(0, 2);
+    return { ok: true, eliminated };
+  }
+
+  react(code: string, playerId: string, emoji: string) {
+    const room = this.rooms.get(code); const player = room?.players.get(playerId);
+    if (!room || !player || !['🔥','🤯','😂','⚡','👀','💀'].includes(emoji)) return;
+    if (player.lastReactionAt && Date.now() - player.lastReactionAt < 700) return;
+    player.lastReactionAt = Date.now();
+    this.io.to(code).emit('reaction:new', { id: randomUUID(), playerId, nickname: player.nickname, avatar: player.avatar, emoji });
   }
 
   disconnect(socketId: string) {
@@ -124,13 +156,16 @@ export class GameManager {
     if (room.questionIndex >= room.questions.length) {
       room.phase = 'winner'; room.questionEndsAt = undefined; this.emit(room); return;
     }
-    room.phase = 'question'; room.questionEndsAt = Date.now() + QUESTION_MS;
-    for (const p of room.players.values()) p.answered = false;
+    room.phase = 'question'; room.questionEndsAt = Date.now() + QUESTION_MS; room.fusionBonus = false;
+    for (const p of room.players.values()) { p.answered = false; p.answerOption = undefined; p.answerCorrect = undefined; p.activePower = undefined; }
     this.emit(room);
     room.timer = setTimeout(() => this.reveal(room), QUESTION_MS);
   }
 
   private reveal(room: Room) {
+    const contenders = [...room.players.values()].filter((p) => p.connected && !p.spectator);
+    room.fusionBonus = contenders.length > 1 && contenders.every((p) => p.answerCorrect);
+    if (room.fusionBonus) contenders.forEach((p) => p.score += 150);
     room.phase = 'reveal'; room.questionEndsAt = undefined; this.emit(room);
     room.timer = setTimeout(() => {
       room.phase = 'leaderboard'; this.emit(room);

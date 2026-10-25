@@ -33,6 +33,8 @@ export function createAppServer(port = Number(process.env.PORT) || 3001) {
       const error = games.start(code, playerId); done({ ok: !error, error });
     });
     socket.on('answer:submit', ({ code, playerId, option }, done) => done(games.answer(code, playerId, option)));
+    socket.on('power:use', ({ code, playerId, power }, done) => done(games.usePower(code, playerId, power)));
+    socket.on('reaction:send', ({ code, playerId, emoji }) => games.react(code, playerId, emoji));
     socket.on('disconnect', () => games.disconnect(socket.id));
   });
 

@@ -27,6 +27,10 @@ test('two independent browser sessions join one synchronized match', async ({ br
   const hostQuestion = await host.locator('h1').last().textContent();
   const guestQuestion = await guest.locator('h1').last().textContent();
   expect(guestQuestion).toBe(hostQuestion);
+  await expect(host.getByRole('button', { name: /DOUBLE DOWN/ })).toBeVisible();
+  await expect(guest.getByRole('button', { name: /PHASE SHIFT/ })).toBeVisible();
+  await guest.getByRole('button', { name: '🤯', exact: true }).click();
+  await expect(host.getByText('Pixel')).toBeVisible();
 
   await Promise.all([hostContext.close(), guestContext.close()]);
 });

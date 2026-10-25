@@ -20,9 +20,14 @@ describe('Brain Blitz multiplayer', () => {
     const questionPromise=new Promise<RoomState>((resolve)=>guest.on('room:state',(s:RoomState)=>{if(s.phase==='question')resolve(s);}));
     const started=await emitAck<{ok:boolean}>(host,'game:start',{code:created.state!.code,playerId:created.playerId});
     expect(started.ok).toBe(true); const question=await questionPromise; expect(question.question?.options).toHaveLength(4); expect(question.correctOption).toBeUndefined();
+    const power=await emitAck<{ok:boolean}>(guest,'power:use',{code:created.state!.code,playerId:joined.playerId,power:'double'});
+    expect(power.ok).toBe(true);
     const internal=server.games.rooms.get(created.state!.code)!; const correct=internal.questions[0].correct;
     const answered=await emitAck<{ok:boolean;correct:boolean;points:number}>(guest,'answer:submit',{code:created.state!.code,playerId:joined.playerId,option:correct});
-    expect(answered.correct).toBe(true); expect(answered.points).toBeGreaterThanOrEqual(100);
+    expect(answered.correct).toBe(true); expect(answered.points).toBeGreaterThanOrEqual(200);
+    const reactionPromise=new Promise<{emoji:string;nickname:string}>((resolve)=>host.once('reaction:new',resolve));
+    guest.emit('reaction:send',{code:created.state!.code,playerId:joined.playerId,emoji:'🤯'});
+    expect(await reactionPromise).toMatchObject({emoji:'🤯',nickname:'Pixel'});
     guest.disconnect(); const reconnect=await connect();
     const restored=await emitAck<JoinResult>(reconnect,'room:join',{code:created.state!.code,nickname:'Pixel',avatar:'👾',playerId:joined.playerId});
     expect(restored.ok).toBe(true); expect(restored.state?.players.find(p=>p.id===joined.playerId)?.score).toBe(answered.points);
