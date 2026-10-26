@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AnswerResult, DrawStroke, JoinResult, PowerResult, ReactionEvent, RoomState } from '../shared/types';
+import type { AnswerResult, ArenaWorld, DrawStroke, JoinResult, PowerResult, ReactionEvent, RoomState } from '../shared/types';
 import { ArcadeShell } from './components/ArcadeShell';
 import { useSound } from './hooks/useSound';
 import { clearSession, loadSession, saveSession } from './lib/session';
@@ -66,15 +66,17 @@ export function App() {
   const join = () => { if (!validProfile()) return; if (code.length!==6) {setError('Room codes are six characters.');return;} play('tap'); socket.emit('room:join',{code,nickname,avatar},(r:JoinResult)=>enterRoom(r,{nickname,avatar})); };
   const start = () => socket.emit('game:start',{code:state!.code,playerId},(r:{ok:boolean;error?:string})=>!r.ok&&setError(r.error));
   const answer = (option:number) => { setSelected(option); play('tap'); socket.emit('answer:submit',{code:state!.code,playerId,option},(r:AnswerResult)=>{setResult(r); play(r.correct?'correct':'wrong');}); };
-  const usePower = (power:'double'|'phase') => socket.emit('power:use',{code:state!.code,playerId,power},(r:PowerResult)=>{if(!r.ok)setError(r.error);else{setEliminated(r.eliminated||[]);play('tap');}});
+  const usePower = (power:'double'|'phase'|'rewind') => socket.emit('power:use',{code:state!.code,playerId,power},(r:PowerResult)=>{if(!r.ok)setError(r.error);else{if(power==='rewind'){setSelected(undefined);setResult(undefined);}setEliminated(r.eliminated||[]);play('tap');}});
+  const setWorld=(world:ArenaWorld)=>state&&socket.emit('world:set',{code:state.code,playerId,world},(r:{ok:boolean;error?:string})=>!r.ok&&setError(r.error));
+  const haunt=()=>state&&socket.emit('ghost:haunt',{code:state.code,playerId},()=>play('tap'));
   const react = (emoji:string) => state && socket.emit('reaction:send',{code:state.code,playerId,emoji});
   const draw = (stroke:DrawStroke) => state && socket.emit('draw:send',{code:state.code,playerId,stroke});
   const home = () => { clearSession(); setState(undefined); setPlayerId(undefined); setCode(''); setResult(undefined); setSelected(undefined); };
 
   let content = <Home {...{nickname,avatar,code,error}} onNickname={setNickname} onAvatar={setAvatar} onCode={setCode} onCreate={create} onJoin={join}/>;
   if (state?.phase === 'lobby') content = <Lobby state={state} me={playerId} onStart={start}/>;
-  if (state?.phase === 'question' || state?.phase === 'reveal') content = <Quiz state={state} me={playerId} seconds={seconds} selected={selected} result={result} eliminated={eliminated} strokes={strokes} secret={secret} onDraw={draw} onPower={usePower} onAnswer={answer}/>;
-  if (state?.phase === 'leaderboard') content = <Leaderboard state={state} me={playerId}/>;
+  if (state?.phase === 'question' || state?.phase === 'reveal') content = <Quiz state={state} me={playerId} seconds={seconds} selected={selected} result={result} eliminated={eliminated} strokes={strokes} secret={secret} onDraw={draw} onPower={usePower} onAnswer={answer} onHaunt={haunt}/>;
+  if (state?.phase === 'leaderboard') content = <Leaderboard state={state} me={playerId} onWorld={setWorld}/>;
   if (state?.phase === 'winner') content = <Winner state={state} me={playerId} onAgain={start} onHome={home}/>;
-  return <ArcadeShell sound={sound} onSound={toggleSound} connected={connected} room={state?.code} scene={state?.phase || 'home'}>{content}{state && <ReactionDock reactions={reactions} onReact={react}/>}</ArcadeShell>;
+  return <ArcadeShell sound={sound} onSound={toggleSound} connected={connected} room={state?.code} scene={state?.phase || 'home'} world={state?.world}>{content}{state && <ReactionDock reactions={reactions} onReact={react}/>}</ArcadeShell>;
 }

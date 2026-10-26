@@ -1,5 +1,6 @@
 export type GamePhase = 'lobby' | 'question' | 'reveal' | 'leaderboard' | 'winner';
 export type GlitchId = 'drawstorm' | 'consensus' | 'impostor' | 'prediction' | 'memory' | 'heist' | 'fusion' | 'chain' | 'reverse' | 'boss';
+export type ArenaWorld = 'cyber' | 'ocean' | 'volcano' | 'dream' | 'void' | 'jungle';
 export interface GlitchView { id: GlitchId; name: string; icon: string; instruction: string; }
 export interface DrawStroke { id: string; from: [number, number]; to: [number, number]; color: string; size: number; }
 
@@ -16,8 +17,11 @@ export interface PlayerView {
   maxStreak: number;
   doubleDowns: number;
   phaseShifts: number;
-  activePower?: 'double' | 'phase';
+  activePower?: 'double' | 'phase' | 'rewind';
   team?: 'cyan' | 'pink';
+  rewinds: number;
+  mission?: string;
+  missionComplete?: boolean;
 }
 
 export interface QuestionView {
@@ -44,6 +48,12 @@ export interface RoomState {
   impostorId?: string;
   bossId?: string;
   chainBank?: number;
+  world: ArenaWorld;
+  crowdEnergy: number;
+  bossHealth?: number;
+  duelistIds?: string[];
+  cloneOption?: number;
+  recap?: { fastest?: string; combo?: string; champion?: string; world: ArenaWorld };
 }
 
 export interface JoinPayload { code: string; nickname: string; avatar: string; playerId?: string; }

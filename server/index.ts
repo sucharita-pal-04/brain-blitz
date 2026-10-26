@@ -34,6 +34,8 @@ export function createAppServer(port = Number(process.env.PORT) || 3001) {
     });
     socket.on('answer:submit', ({ code, playerId, option }, done) => done(games.answer(code, playerId, option)));
     socket.on('power:use', ({ code, playerId, power }, done) => done(games.usePower(code, playerId, power)));
+    socket.on('world:set',({code,playerId,world},done)=>done(games.setWorld(code,playerId,world)));
+    socket.on('ghost:haunt',({code,playerId},done)=>done(games.haunt(code,playerId)));
     socket.on('reaction:send', ({ code, playerId, emoji }) => games.react(code, playerId, emoji));
     socket.on('draw:send', ({ code, playerId, stroke }) => games.draw(code, playerId, stroke));
     socket.on('disconnect', () => games.disconnect(socket.id));

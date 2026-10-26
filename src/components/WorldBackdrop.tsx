@@ -1,0 +1,15 @@
+import type { CSSProperties } from 'react';
+
+const GLYPHS=['✦','△','◇','⌁','×','◌'];
+
+export function WorldBackdrop({scene='home',world='cyber'}:{scene?:string;world?:string}) {
+  return <div className={`cosmic-backdrop scene-${scene} world-${world}`} aria-hidden="true">
+    <div className="nebula nebula-pink"/><div className="nebula nebula-blue"/>
+    <div className="aurora aurora-one"/><div className="aurora aurora-two"/>
+    <div className="light-beams"><i/><i/><i/></div><div className="horizon-glow"/>
+    <div className="portal-tunnel">{Array.from({length:7},(_,i)=><i key={i} style={{'--ring':i} as CSSProperties}/>)}</div>
+    <div className="prism prism-one"><b/><b/><b/><b/></div><div className="prism prism-two"><b/><b/><b/><b/></div>
+    <div className="scanlines"/><div className="stars">{Array.from({length:32},(_,i)=><i key={i} style={{left:`${(i*37)%101}%`,top:`${(i*61)%97}%`,animationDelay:`-${(i%9)*.7}s`,animationDuration:`${3+(i%5)}s`}}/>)}</div>
+    <div className="float-glyphs">{GLYPHS.map((g,i)=><span key={g} style={{left:`${8+i*17}%`,animationDelay:`-${i*2.1}s`}}>{g}</span>)}</div><div className="vignette"/>
+  </div>;
+}

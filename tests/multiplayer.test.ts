@@ -42,4 +42,19 @@ describe('Brain Blitz multiplayer', () => {
     const answer=await emitAck<{ok:boolean;error:string}>(late,'answer:submit',{code:created.state!.code,playerId:joined.playerId,option:0});
     expect(answer.ok).toBe(false); expect(answer.error).toContain('Spectators');
   });
+
+  it('synchronizes reality control, timeline rewind, and ghost influence', async () => {
+    const host=await connect(); const guest=await connect();
+    const created=await emitAck<JoinResult>(host,'room:create',{nickname:'Host',avatar:'🤖'});
+    const joined=await emitAck<JoinResult>(guest,'room:join',{code:created.state!.code,nickname:'Runner',avatar:'👾'});
+    expect((await emitAck<{ok:boolean}>(host,'world:set',{code:created.state!.code,playerId:created.playerId,world:'ocean'})).ok).toBe(true);
+    expect(server.games.state(created.state!.code)?.world).toBe('ocean');
+    await emitAck(host,'game:start',{code:created.state!.code,playerId:created.playerId});
+    await emitAck(guest,'answer:submit',{code:created.state!.code,playerId:joined.playerId,option:0});
+    const rewound=await emitAck<{ok:boolean}>(guest,'power:use',{code:created.state!.code,playerId:joined.playerId,power:'rewind'});
+    expect(rewound.ok).toBe(true); expect(server.games.state(created.state!.code)?.players.find(p=>p.id===joined.playerId)?.answered).toBe(false);
+    const late=await connect(); const ghost=await emitAck<JoinResult>(late,'room:join',{code:created.state!.code,nickname:'Ghost',avatar:'👽'});
+    const haunted=await emitAck<{ok:boolean}>(late,'ghost:haunt',{code:created.state!.code,playerId:ghost.playerId});
+    expect(haunted.ok).toBe(true); expect(server.games.state(created.state!.code)?.crowdEnergy).toBe(20);
+  });
 });
