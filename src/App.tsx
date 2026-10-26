@@ -76,5 +76,5 @@ export function App() {
   if (state?.phase === 'question' || state?.phase === 'reveal') content = <Quiz state={state} me={playerId} seconds={seconds} selected={selected} result={result} eliminated={eliminated} strokes={strokes} secret={secret} onDraw={draw} onPower={usePower} onAnswer={answer}/>;
   if (state?.phase === 'leaderboard') content = <Leaderboard state={state} me={playerId}/>;
   if (state?.phase === 'winner') content = <Winner state={state} me={playerId} onAgain={start} onHome={home}/>;
-  return <ArcadeShell sound={sound} onSound={toggleSound} connected={connected} room={state?.code}>{content}{state && <ReactionDock reactions={reactions} onReact={react}/>}</ArcadeShell>;
+  return <ArcadeShell sound={sound} onSound={toggleSound} connected={connected} room={state?.code} scene={state?.phase || 'home'}>{content}{state && <ReactionDock reactions={reactions} onReact={react}/>}</ArcadeShell>;
 }

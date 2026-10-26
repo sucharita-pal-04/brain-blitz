@@ -3,9 +3,9 @@ import { Volume2, VolumeX, Wifi } from 'lucide-react';
 import { Logo } from './Logo';
 import { CosmicBackdrop } from './CosmicBackdrop';
 
-export function ArcadeShell({ children, sound, onSound, connected = true, room }: { children: ReactNode; sound: boolean; onSound: () => void; connected?: boolean; room?: string }) {
+export function ArcadeShell({ children, sound, onSound, connected = true, room, scene = 'home' }: { children: ReactNode; sound: boolean; onSound: () => void; connected?: boolean; room?: string; scene?: string }) {
   return <main className="min-h-screen overflow-hidden bg-ink text-white">
-    <CosmicBackdrop/>
+    <CosmicBackdrop scene={scene}/>
     <div className="grid-floor fixed inset-x-0 bottom-0 h-1/2 opacity-30" />
     <div className="world-3d relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-5 sm:px-8">
       <header className="hud-header flex items-center justify-between"><Logo /><div className="flex items-center gap-2">
