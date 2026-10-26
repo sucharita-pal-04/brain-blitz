@@ -6,9 +6,12 @@ import { GuideModal } from './GuideModal';
 
 export function ArcadeShell({ children, sound, onSound, connected = true, room, scene = 'home', world = 'cyber' }: { children: ReactNode; sound: boolean; onSound: () => void; connected?: boolean; room?: string; scene?: string; world?: string }) {
   const [guideOpen, setGuideOpen] = useState(false);
-  return <main className="min-h-screen overflow-hidden bg-ink text-white">
+  const inMatch = scene === 'question' || scene === 'reveal';
+  return <main className={`min-h-screen overflow-hidden bg-ink text-white ${inMatch ? 'match-stage' : ''}`}>
     <WorldBackdrop scene={scene} world={world}/>
     <div className="grid-floor fixed inset-x-0 bottom-0 h-1/2 opacity-30" />
+    {inMatch && <div className="match-marquee" aria-hidden="true"><strong>BRAIN <span>BLITZ</span></strong><small>REAL-TIME MULTIPLAYER TRIVIA</small></div>}
+    {inMatch && <><div className="energy-pylon pylon-left"><i/><i/><b>ϟ</b></div><div className="energy-pylon pylon-right"><i/><i/><b>ϟ</b></div></>}
     <div className="world-3d relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-5 sm:px-8">
       <header className="hud-header flex items-center justify-between"><Logo /><div className="flex items-center gap-2">
         {room && <span className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-2 font-display text-xs tracking-widest text-white/60 sm:block">ROOM {room}</span>}
@@ -16,7 +19,10 @@ export function ArcadeShell({ children, sound, onSound, connected = true, room, 
         <button aria-label="Open game guide" title="How to play" className="icon-button guide-trigger" onClick={() => setGuideOpen(true)}><BookOpen size={18}/><span>GUIDE</span></button>
         <button aria-label="Toggle sound" className="icon-button" onClick={onSound}>{sound ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button>
       </div></header>
-      <section className="flex flex-1 items-center justify-center py-8">{children}</section>
+      <section className={`flex flex-1 items-center justify-center py-8 ${inMatch ? 'arena-chassis' : ''}`}>
+        {inMatch && <><span className="chassis-corner corner-tl"/><span className="chassis-corner corner-tr"/><span className="chassis-corner corner-bl"/><span className="chassis-corner corner-br"/><div className="chassis-topline"/></>}
+        {children}
+      </section>
       <footer className="hud-footer text-center text-[10px] tracking-[.3em] text-white/25"><span>◈</span> REAL-TIME NEURAL SHOWDOWN <span>◈</span> NO LOGIN REQUIRED <span>◈</span></footer>
     </div>
     <GuideModal open={guideOpen} onClose={() => setGuideOpen(false)}/>
